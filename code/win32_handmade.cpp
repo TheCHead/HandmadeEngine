@@ -15,6 +15,7 @@ typedef int8_t int8;
 typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
+typedef int32 bool32;
 
 struct win32_offscreen_buffer
 {
@@ -37,7 +38,7 @@ struct win32_window_dimension
 typedef X_INPUT_GET_STATE(x_input_get_state);
 X_INPUT_GET_STATE(XInputGetStateStub)
 {
-    return(0);
+    return(ERROR_DEVICE_NOT_CONNECTED);
 }
 global_var x_input_get_state *XInputGetState_ = XInputGetStateStub;
 
@@ -46,7 +47,7 @@ global_var x_input_get_state *XInputGetState_ = XInputGetStateStub;
 typedef X_INPUT_SET_STATE(x_input_set_state);
 X_INPUT_SET_STATE(XInputSetStateStub)
 {
-    return(0);
+    return(ERROR_DEVICE_NOT_CONNECTED);
 }
 global_var x_input_set_state *XInputSetState_ = XInputSetStateStub;
 
@@ -58,7 +59,12 @@ global_var win32_offscreen_buffer GlobalBackbuffer;
 
 internal_func void Win32LoadXInput(void)
 {
-    HMODULE XInputLibrary = LoadLibraryA("xinput1_3.dll");
+    HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
+    if (!XInputLibrary)
+    {
+        XInputLibrary = LoadLibraryA("xinput1_3.dll");
+    }
+    
     if (XInputLibrary)
     {
         XInputGetState_ = (x_input_get_state *)GetProcAddress(XInputLibrary, "XInputGetState");
@@ -222,6 +228,12 @@ LRESULT CALLBACK MainWindowCallback(
                 {
                     
                 }
+            }
+
+            bool32 AltKeyDown = ((lParam & (1 << 29)));
+            if ((VKCode == VK_F4) && AltKeyDown)
+            {
+                Running = false;
             }
         } break;
 
