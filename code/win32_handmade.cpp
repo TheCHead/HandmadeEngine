@@ -3,6 +3,7 @@
 #include <Xinput.h>
 #include <dsound.h>
 #include <math.h>
+#include <stdio.h>
 
 #define internal_func static
 #define local_persist static
@@ -425,6 +426,10 @@ int CALLBACK WinMain(
     LPSTR     lpCmdLine,
     int       nShowCmd)
 {
+    LARGE_INTEGER PerformanceFrequency;
+    QueryPerformanceFrequency(&PerformanceFrequency);
+    int64 PerfCountFrequency = PerformanceFrequency.QuadPart;
+
     Win32LoadXInput();
     WNDCLASSA WindowClass = {};
 
@@ -474,6 +479,10 @@ int CALLBACK WinMain(
             Win32InitDSound(WindowHandle, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
             Win32FillSoundBuffer(&SoundOutput, 0, SoundOutput.SecondaryBufferSize);
             GlobalDSSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);        
+
+            LARGE_INTEGER LastCounter;
+            QueryPerformanceCounter(&LastCounter);
+            uint64 LastCycleCounter = __rdtsc();
 
             GlobalRunning = true;
             while(GlobalRunning)
@@ -553,6 +562,24 @@ int CALLBACK WinMain(
                 
                 win32_window_dimension Dimension = Win32GetWindowDimensions(WindowHandle);
                 Win32DisplayBufferInWindow(DeviceContext, Dimension.Width, Dimension.Height, &GlobalBackbuffer, 0, 0, Dimension.Width, Dimension.Height);
+
+
+                uint64 EndCycleCounter = __rdtsc();
+
+                LARGE_INTEGER EndCounter;
+                QueryPerformanceCounter(&EndCounter);
+                int64 CyclesElapsed = EndCycleCounter - LastCycleCounter;
+                int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+                real64 MSPerFrame = ((1000.0f * (real64)CounterElapsed) / (real64)PerfCountFrequency);
+                real64 FPS = (real64)PerfCountFrequency / (real64)CounterElapsed;
+                real64 MCPF = ((real64)CyclesElapsed / (1000.0f * 1000.0f));
+
+                char Buffer[256];
+                sprintf(Buffer, "%.02fmspf, %.02ffps, %.02fmcpf\n", MSPerFrame, FPS, MCPF);
+                OutputDebugStringA(Buffer);
+
+                LastCycleCounter = EndCycleCounter;
+                LastCounter = EndCounter;
             }
             
             ReleaseDC(WindowHandle, DeviceContext);
